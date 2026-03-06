@@ -14,8 +14,30 @@
     └── util                // 各種ユーティリティモジュール（依存リポジトリからコピー）
 ```
 
+# 前提条件
+1. アプリケーションのビルド環境が存在していることが必要です。
+    | ソフトウェア名 | ディストリビューション | バージョン |
+    | -------------- | ---------------------- | ---------- |
+    | Python         | -                      | 3.13.9     |
+
+2. AWS Secrets Managerを準備していることが必要です。
+
+3. 依存リポジトリの使用準備が完了していることが必要です。
+    - 依存リポジトリ
+        | リポジトリ名 | 備考                             |
+        | ------------ | -------------------------------- |
+        | repo_infradx_ap_BSC_0020         | 共通ライブラリとして使用します。 |
+        
+        ※詳細は[リポジトリ一覧](#リポジトリ一覧)を参照
+
+4. PostgreSQL、PostGISの使用準備が完了していることが必要です。
+    - DDL実行については[repo_infradx_oss_DDL](https://github.com/infra-faci-pf/repo_infradx_oss_DDL)を参照してください。
+
+5. GeoServerの使用準備が完了していることが必要です。
+    - GeoServerが起動していること
+
 # リポジトリ利用方法
-各環境の詳細は[前提条件](#前提条件)をご参照ください。
+必要なソフトウェアやサービスの詳細は[前提条件](#前提条件)をご参照ください。
 1. 依存リポジトリ（repo_infradx_ap_BSC_0020）から共通モジュールをコピーします。
     ```bash
     # common、config、core、utilディレクトリのファイルをコピー
@@ -53,36 +75,35 @@
     ※公益事業者・道路管理者コード、レイヤIDは必須パラメータです
     ※レイヤIDは複数指定可能です（カンマ区切り）
 
-# 前提条件
-1. アプリケーションのビルド環境が存在していることが必要です。
-    | ソフトウェア名 | ディストリビューション | バージョン |
-    | -------------- | ---------------------- | ---------- |
-    | Python         | -                      | 3.13.9     |
-
-2. AWS Secrets Managerを準備していることが必要です。
-
-3. 依存リポジトリの使用準備が完了していることが必要です。
-    - 依存リポジトリ
-        | リポジトリ名 | 備考                             |
-        | ------------ | -------------------------------- |
-        | repo_infradx_ap_BSC_0020         | 共通ライブラリとして使用します。 |
-        
-        ※詳細は[リポジトリ一覧](#リポジトリ一覧)を参照
-
-4. PostgreSQL、PostGISの使用準備が完了していることが必要です。
-    - DDL実行については[repo_infradx_oss_DDL](https://github.com/infra-faci-pf/repo_infradx_oss_DDL)を参照してください。
-
-5. GeoServerの使用準備が完了していることが必要です。
+6. 実行ログを確認します。
+    処理実行後、以下のようなログが出力されます。
+    ```
+    [2026-02-03 18:54:58,621] [INFO] [LIM] BPI0001:LIM_0020_レイヤ情報削除処理 開始
+    [2026-02-03 18:54:58,710] [INFO] [LIM] BPI0002:LIM_0020_レイヤ情報削除処理 終了
+    ```
+    
+    ログファイルの出力先は設定ファイル（`App/config/config.ini`）の以下の設定で定義されています。
+    ```ini
+    ; ログファイルパス
+    log_file_path = /infradx/logs/infradx-batch/infradx-batch.log
+    ```
 
 # 利用OSS一覧
 アプリケーションを利用するにあたり、以下OSSが必要です。
 Python関連パッケージは App/requirements.txt に記載しており、`pip install -r App/requirements.txt` でインストールされます。
+
+・GeoServerは以下をご参照ください。
+  [https://geoserver.org](https://geoserver.org)
 
 | OSS名       | バージョン | ライセンス                                   |
 | ----------- | ---------- | -------------------------------------------- |
 | Python      | 3.13.9     | PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2 |
 | PostgreSQL  | 16.8       | The PostgreSQL Licence                       |
 | PostGIS     | 3.4        | GNU General Public License version 2         |
+| boto3       | 1.40.74    | Apache License 2.0                           |
+| psycopg2-binary | 2.9.10 | GNU Lesser General Public License v3         |
+| concurrent-log-handler | 0.9.28 | Apache License 2.0              |
+| requests    | 2.32.3     | Apache License 2.0                           |
 | GeoServer   | 2.24       | GNU General Public License version 2         |
 
 # 再配布OSS一覧
@@ -94,7 +115,7 @@ Python関連パッケージは App/requirements.txt に記載しており、`pip
 
 # ライセンス
 1. 本リポジトリはMIT Licenseで提供されています。
-2. ソースコードおよび関連ドキュメントの著作権はエヌ・ティ・ティ・インフラネット株式会社及び株式会社NTTデータに帰属します。
+2. ソースコードおよび関連ドキュメントの著作権はNTTインフラネット株式会社及び株式会社NTTデータに帰属します。
 
 # 免責事項
 1. 本リポジトリの内容は予告なく変更・削除する可能性があります。
