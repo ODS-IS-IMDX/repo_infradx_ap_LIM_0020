@@ -14,8 +14,6 @@ LIM_0020_deleteLayerInformation.py
     ・指定されたレイヤIDに紐づくベクタレイヤマスタデータ
     ・ベクタレイヤマスタと外部キー制約で紐づく認可レイヤ（設備）データ
 
-    ただし、立会Web側の中間テーブル及びマテリアライズドビュー、マスタテーブルは運用で削除することとする。
-
 実行コマンド形式:
     python3 [バッチ格納先パス]/LIM_0020_deleteLayerInformation.py
     --provider_code=[公益事業者・道路管理者コード] --layer_id=[レイヤID（複数）]
