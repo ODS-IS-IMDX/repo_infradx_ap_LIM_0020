@@ -99,7 +99,7 @@ def validate_inputs(param):
         first_suffix = layer_ids[0].split("_")[-1]
         # すべてのレイヤID末尾の公益事業者・道路管理者IDが同じ値であるか
         if layer_id.split("_")[-1] != first_suffix:
-            logger.error("BPE0019", "レイヤID", layer_ids)
+            logger.error("BPE0019", "レイヤID", ", ".join(layer_ids))
             logger.process_error_end()
 
         # チェックOKの場合、チェックOKのレイヤIDリストに追加
@@ -148,10 +148,10 @@ def check_provider_exists(conn, db_mst_schema, provider_code, layer_id):
 
 # 3. 削除対象ベクタレイヤ存在確認
 def check_vector_layer_exists(conn, db_mst_schema, layer_id):
-    # ベクタレイヤマスタに既存データが存在するか確認
+    # ベクタレイヤマスタからレイヤIDに紐づく設備小項目IDを取得
     query = (
-        f"SELECT EXISTS (SELECT 1 FROM {db_mst_schema}.mst_vector_layer "
-        "WHERE layer_id = %s)"
+        f"SELECT fac_subitem_id FROM {db_mst_schema}.mst_vector_layer "
+        "WHERE layer_id = %s"
     )
     try:
         result = Database.execute_query(
@@ -169,6 +169,7 @@ def check_vector_layer_exists(conn, db_mst_schema, layer_id):
         logger.warning("BPW0004", "ベクタレイヤマスタ", layer_id)
         # 削除対象ベクタレイヤが存在しない場合、呼び出し元に例外をキャッチさせて次のレイヤIDへ
         raise Exception
+    return result
 
 
 # 4. 利用終了年月日更新
@@ -246,7 +247,7 @@ def check_mv_table_exists(conn, db_mv_schema, layer_id):
         logger.warning("BPW0013", "最終断面テーブル存在確認", layer_id, conn.info.host)
         raise
     if not result:
-        logger.warning("BPI0012", "最終断面テーブル", layer_id, conn.info.host)
+        logger.info("BPI0012", "最終断面テーブル", layer_id, conn.info.host)
 
     return result
 
@@ -269,34 +270,20 @@ def delete_mv_table(mv_conn, db_mv_schema, layer_id):
 
 
 # 9. 設備データ管理マスタDB削除可否確認
-def is_drop_facility_table(conn, db_mst_schema, layer_id, valid_layer_ids: list):
-    layer_id_parts = layer_id.split("_")
-    provider_id = layer_id_parts[-1]
-    facility_prefix = (
-        f"{'_'.join(layer_id_parts[:-2])}_" if len(layer_id_parts) > 2 else ""
-    )
-
-    # 断面識別値ごとに候補のレイヤIDを生成
-    layer_id_list = []
-    valid_layer_id_set = set(valid_layer_ids)
-    for identifier in Constants.FINAL_CROSS_SECTION_IDENTIFIERS:
-        candidate = f"{facility_prefix}{identifier}_{provider_id}"
-        if candidate not in valid_layer_id_set:
-            layer_id_list.append(candidate)
-
-    if not layer_id_list:
-        return False
+def is_drop_facility_table(conn, db_mst_schema, fac_subitem_id, layer_id):
+    # レイヤIDから公益事業者・道路管理者IDを抽出
+    provider_id = layer_id.split("_")[-1]
 
     query = (
         f"SELECT EXISTS (SELECT 1 FROM {db_mst_schema}.mst_vector_layer "
-        "WHERE layer_id IN %s)"
+        "WHERE fac_subitem_id = %s AND provider_id = %s AND NOT layer_id = %s)"
     )
     try:
         result = Database.execute_query(
             conn,
             logger,
             query,
-            (tuple(layer_id_list),),
+            (fac_subitem_id, provider_id, layer_id),
             fetchone=True,
             raise_exception=True,
         )
@@ -306,6 +293,21 @@ def is_drop_facility_table(conn, db_mst_schema, layer_id, valid_layer_ids: list)
     if result:
         logger.info("BPI0010", layer_id)
     return result
+
+
+# 設備テーブル名作成
+def create_fac_table_name(layer_id):
+    # レイヤIDから設備小項目英名を抽出
+    layer_id_parts = layer_id.split("_")
+    facility_prefix = (
+        f"{'_'.join(layer_id_parts[:-3])}_" if len(layer_id_parts) > 3 else ""
+    )
+    # レイヤIDから公益事業者・道路管理者IDを抽出
+    provider_id = layer_id.split("_")[-1]
+
+    # 「data_[設備小項目英名]_[公益事業者・道路管理者ID]」
+    fac_table = "data_" + facility_prefix + provider_id
+    return fac_table
 
 
 # 10. 設備テーブル存在確認
@@ -465,7 +467,9 @@ def main():
 
             try:
                 # 3. 削除対象ベクタレイヤ存在確認
-                check_vector_layer_exists(conn, db_mst_schema, layer_id)
+                fac_subitem_id = check_vector_layer_exists(
+                    conn, db_mst_schema, layer_id
+                )
 
                 # 4. 利用終了年月日更新
                 update_end_date(conn, db_mst_schema, layer_id)
@@ -493,11 +497,11 @@ def main():
 
                 # 9. 設備データ管理マスタDB削除可否確認
                 if not is_drop_facility_table(
-                    conn, db_mst_schema, layer_id, valid_layer_ids
+                    conn, db_mst_schema, fac_subitem_id, layer_id
                 ):
                     # 10. 設備テーブル存在確認
-                    # 設備テーブル名
-                    fac_table = "data_" + layer_id
+                    # 設備テーブル名作成
+                    fac_table = create_fac_table_name(layer_id)
                     if has_admin_code(conn, db_fac_schema, fac_table, layer_id):
                         # 11. 設備テーブル削除
                         drop_facility_table(conn, db_fac_schema, fac_table, layer_id)
